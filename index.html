@@ -1369,13 +1369,18 @@
 
 
 function createTruckPalletCanvas(group) {
+  // 팔레트 라벨 이미지가 너무 커지면 브라우저에서 Invalid string length 오류가 발생할 수 있어
+  // 실제 캔버스는 50% 크기로 만들고, 기존 2480x3508 좌표계는 그대로 유지합니다.
+  const scale = 0.5;
+  const pageW = 2480;
+  const pageH = 3508;
+
   const canvas = document.createElement("canvas");
-  canvas.width = 1240;
-  canvas.height = 1754;
+  canvas.width = pageW * scale;
+  canvas.height = pageH * scale;
 
   const ctx = canvas.getContext("2d");
-  const pageW = canvas.width;
-  const pageH = canvas.height;
+  ctx.scale(scale, scale);
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, pageW, pageH);
@@ -1612,14 +1617,27 @@ function parseTruckPalletRows(sheet) {
 }
 
 function generateTruckPalletLabelPdf(groups) {
+  if (!groups || !groups.length) {
+    alert("출력할 팔레트 라벨 데이터가 없습니다.");
+    return;
+  }
+
+  if (groups.length > 50) {
+    alert("팔레트 라벨 수가 너무 많습니다. 50개 이하로 나눠서 출력해주세요.");
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
 
   groups.forEach((group, index) => {
     if (index > 0) doc.addPage();
+
     const canvas = createTruckPalletCanvas(group);
-    const img = canvas.toDataURL("image/png");
-    doc.addImage(img, "PNG", 0, 0, 210, 297);
+
+    // PNG는 문자열 용량이 커서 Invalid string length 오류가 날 수 있어 JPEG로 생성합니다.
+    const img = canvas.toDataURL("image/jpeg", 0.85);
+    doc.addImage(img, "JPEG", 0, 0, 210, 297);
   });
 
   doc.save(`팔레트라벨_${Date.now()}.pdf`);
